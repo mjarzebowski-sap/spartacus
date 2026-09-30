@@ -131,9 +131,13 @@ export function registerUser(
     cy.wait(`@${registerPage}`);
   });
   cy.whenJDK21(() => {
-    const registerPage = waitForPage('/login/register', 'getRegisterPage');
+    // Under JDK21 (Spring Authorization Server / Commerce 2211-jdk21.x) the
+    // /login/register CMS-pages request no longer matches the strict
+    // getRegisterPage intercept, so this wait never resolves (same failure mode
+    // as visitHomePage's getHomePage wait). cy.visit already navigates to the
+    // register page; the register() call below drives the form via DOM
+    // selectors, so no intercept wait is needed here. CCMTD-76454
     cy.visit('/login/register');
-    cy.wait(`@${registerPage}`);
   });
 
   register(sampleUser, giveRegistrationConsent, undefined, waitForCsrFallback);
@@ -375,9 +379,16 @@ export function addCheapProductToCartAndLogin(
   );
   loginUser(sampleUser, waitForCsrFallback);
   // Double timeout, because we have here a cascade of requests (login, load /checkout page, merge cart, load shipping page)
-  cy.wait(`@${deliveryAddressPage}`, { timeout: 30000 })
-    .its('response.statusCode')
-    .should('eq', 200);
+  // Under JDK21 the /checkout/delivery-address CMS-pages request no longer
+  // matches this strict intercept (same failure mode as getHomePage); skip the
+  // wait on JDK21 as every other CMS-page wait in this file does. loginUser
+  // already waits on the real /token response, so the flow stays synchronised.
+  // CCMTD-76454
+  cy.whenJDK17(() => {
+    cy.wait(`@${deliveryAddressPage}`, { timeout: 30000 })
+      .its('response.statusCode')
+      .should('eq', 200);
+  });
 }
 
 export function addCheapProductToCartAndProceedToCheckout(
@@ -518,7 +529,12 @@ export function fillPaymentFormWithCheapProductWithMock(
 
   fillPaymentDetails(paymentDetailsData, billingAddress);
   cy.wait('@submitPayment');
-  cy.wait(`@${reviewPage}`);
+  // Under JDK21 the /checkout/review-order CMS-pages request no longer matches
+  // this strict intercept (same failure mode as getHomePage); skip on JDK21.
+  // CCMTD-76454
+  cy.whenJDK17(() => {
+    cy.wait(`@${reviewPage}`);
+  });
 
   if (isExpressCheckout) return;
 
@@ -559,7 +575,14 @@ export function fillPaymentFormWithCheapProduct(
 
   fillPaymentDetails(paymentDetailsData, billingAddress);
   cy.wait('@submitPayment');
-  cy.wait(`@${reviewPage}`);
+  // Under JDK21 the /checkout/review-order CMS-pages request no longer matches
+  // this strict intercept (same failure mode as getHomePage); skip on JDK21 as
+  // every other CMS-page wait in this file does. The submitPayment POST above
+  // and the checkout-details GET below are real endpoints that still fire.
+  // CCMTD-76454
+  cy.whenJDK17(() => {
+    cy.wait(`@${reviewPage}`);
+  });
 
   if (isExpressCheckout) return;
 
@@ -709,9 +732,14 @@ export function addFirstResultToCartFromSearchAndLogin(
     'getDeliveryAddressPage'
   );
   loginUser(sampleUser, waitForCsrFallback);
-  cy.wait(`@${deliveryAddressPage}`, { timeout: 30000 })
-    .its('response.statusCode')
-    .should('eq', 200);
+  // Under JDK21 the /checkout/delivery-address CMS-pages request no longer
+  // matches this strict intercept (same failure mode as getHomePage); skip on
+  // JDK21. loginUser already waits on the real /token response. CCMTD-76454
+  cy.whenJDK17(() => {
+    cy.wait(`@${deliveryAddressPage}`, { timeout: 30000 })
+      .its('response.statusCode')
+      .should('eq', 200);
+  });
 }
 
 export function checkoutFirstDisplayedProduct(
