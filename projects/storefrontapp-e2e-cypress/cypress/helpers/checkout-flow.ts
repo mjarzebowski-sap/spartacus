@@ -92,7 +92,13 @@ export function visitHomePage(queryStringParams?: string) {
   } else {
     cy.visit('/');
   }
-  cy.wait(`@${homePageAlias}`);
+  // Under JDK21 (Spring Authorization Server / Commerce 2211-jdk21.x) the
+  // homepage CMS-pages request no longer matches the strict getHomePage
+  // intercept, so this wait never resolves. Guard it the same way every other
+  // CMS-page wait in this file is guarded, so it is skipped on JDK21. CCMTD-76454
+  cy.whenJDK17(() => {
+    cy.wait(`@${homePageAlias}`);
+  });
 }
 
 export function signOut() {
